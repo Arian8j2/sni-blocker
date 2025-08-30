@@ -42,6 +42,7 @@ struct Handshake {
 
 #[derive(Hash, PartialEq, Eq, Debug)]
 struct ConnectionId {
+    src_addr: Ipv4Addr,
     src_port: u16,
     dst_addr: Ipv4Addr,
     dst_port: u16,
@@ -161,6 +162,7 @@ fn complete_tls_handshake(
     tcp_packet: &TcpPacket<&[u8]>,
 ) -> Option<Vec<u8>> {
     let conn_id = ConnectionId {
+        src_addr: ip_header.src_addr(),
         src_port: tcp_packet.src_port(),
         dst_addr: ip_header.dst_addr(),
         dst_port: tcp_packet.dst_port(),
