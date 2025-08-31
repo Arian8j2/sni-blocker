@@ -14,6 +14,9 @@ use tls_parser::{
     SNIType, TlsExtension, TlsMessage, TlsMessageHandshake, TlsRecordType, TlsVersion,
 };
 
+mod direction;
+use direction::Direction;
+
 /// Data link type that is commonly used that doesn't have ethernet header
 const DLT_RAW: i32 = 12;
 
@@ -32,6 +35,9 @@ struct Args {
     /// List of sni domains to block
     #[arg(short, long, required = true)]
     sni_domains: Vec<String>,
+    /// Capture direction
+    #[arg(short, long, default_value_t = Direction::Out)]
+    direction: Direction,
 }
 
 #[derive(Debug)]
@@ -52,6 +58,7 @@ fn main() -> anyhow::Result<()> {
     let Args {
         interface,
         sni_domains,
+        direction,
     } = Args::parse();
 
     SimpleLogger::new()
@@ -80,7 +87,7 @@ fn main() -> anyhow::Result<()> {
         .open()
         .with_context(|| "couldn't open for capture")?;
     capture
-        .direction(pcap::Direction::Out)
+        .direction(pcap::Direction::from(direction))
         .with_context(|| "couldn't set pcap cature direction")?;
     capture
         .filter("tcp", true)
