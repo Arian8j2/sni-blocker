@@ -17,6 +17,9 @@ use tls_parser::{
 mod direction;
 use direction::Direction;
 
+mod pattern;
+use pattern::Pattern;
+
 /// Data link type that is commonly used that doesn't have ethernet header
 const DLT_RAW: i32 = 12;
 
@@ -32,15 +35,14 @@ struct Args {
     /// Name of interface to inspect
     #[arg(short, long)]
     interface: Option<String>,
-    /// List of sni domains to block
+    /// List of sni patterns to block
     #[arg(short, long, required = true)]
-    sni_domains: Vec<String>,
+    sni_patterns: Vec<Pattern>,
     /// Capture direction
     #[arg(short, long, default_value_t = Direction::Out)]
     direction: Direction,
 }
 
-#[derive(Debug)]
 struct Handshake {
     payload: Vec<u8>,
     total_len: u16,
@@ -57,7 +59,7 @@ struct ConnectionId {
 fn main() -> anyhow::Result<()> {
     let Args {
         interface,
-        sni_domains,
+        sni_patterns,
         direction,
     } = Args::parse();
 
@@ -109,7 +111,7 @@ fn main() -> anyhow::Result<()> {
         handle_packet(
             has_eth_header,
             &mut conn_to_handshake,
-            &sni_domains,
+            &sni_patterns,
             &socket,
             packet.data,
         );
@@ -119,7 +121,7 @@ fn main() -> anyhow::Result<()> {
 fn handle_packet(
     has_eth_header: bool,
     conn_to_handshake: &mut HashMap<ConnectionId, Handshake>,
-    sni_blocked_domains: &[String],
+    sni_blocked_patterns: &[Pattern],
     socket: &Socket,
     packet: &[u8],
 ) -> Option<()> {
@@ -142,9 +144,9 @@ fn handle_packet(
     let handshake_payload = complete_tls_handshake(conn_to_handshake, &ip_header, &tcp_packet)?;
     let sni = parse_sni(&handshake_payload)?;
 
-    if !sni_blocked_domains
+    if !sni_blocked_patterns
         .iter()
-        .any(|blocked_sni| sni.ends_with(blocked_sni))
+        .any(|blocked_pattern| blocked_pattern.is_match(&sni))
     {
         return None;
     }
